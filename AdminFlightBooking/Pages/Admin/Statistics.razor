@@ -1,0 +1,106 @@
+﻿@page "/admin/statistics"
+@using AdminFlightBooking.Models
+@using AdminFlightBooking.Services
+@inject ApiService Api
+
+<h3 class="mb-4">Statistici Generale</h3>
+
+@if (flights == null || bookings == null || users == null)
+{
+    <p><em>Se încarcă datele...</em></p>
+}
+else
+{
+    <div class="mb-4">
+        <p><strong>Număr total zboruri:</strong> @flights.Count</p>
+        <p><strong>Număr total utilizatori:</strong> @users.Count</p>
+        <p><strong>Zbor cel mai rezervat:</strong> @(MostBookedFlight != null ? MostBookedFlight.FlightNumber : "N/A") (@MostBookedFlightCount rezervări)</p>
+        <p><strong>Număr zboruri anulate:</strong> @CancelledFlightsCount</p>
+        <p><strong>Venit acumulat curent:</strong> @TotalProfitAllFlights.ToString("C")</p>
+    </div>
+
+    <h3 class="mb-4">Zboruri Rezervate</h3>
+
+    <table class="table table-striped table-hover table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>Zbor</th>
+                <th>Număr Rezervări</th>
+                <th>Pasageri</th>
+                <th>Câștig din rezervări</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var f in flights)
+            {
+                var rezervari = bookings
+                .Where(b => b.Flight?.Id == f.Id)
+                .ToList();
+
+                var validRezervari = rezervari.Where(b => b.Status != "CANCELLED").ToList();
+
+                var userNames = validRezervari
+                .Select(b => b.User?.Name)
+                .Where(name => !string.IsNullOrEmpty(name))
+                .ToList();
+
+                var totalProfit = validRezervari.Sum(b => f.Price);
+
+                <tr>
+                    <td>@f.FlightNumber</td>
+                    <td>@validRezervari.Count</td>
+                    <td>
+                        @if (userNames.Count == 0)
+                        {
+                            <em>Fără rezervări</em>
+                        }
+                        else
+                        {
+                            @string.Join(", ", userNames)
+                        }
+                    </td>
+                    <td>@totalProfit.ToString("C")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Booking>? bookings;
+    private List<Flight>? flights;
+    private List<User>? users;
+
+    // Statistici
+    private Flight? MostBookedFlight;
+    private int MostBookedFlightCount = 0;
+    private int CancelledFlightsCount = 0;
+    private double TotalProfitAllFlights = 0.0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        bookings = await Api.GetBookingsAsync();
+        flights = await Api.GetFlightsAsync();
+        users = await Api.GetUsersAsync();
+
+        if (flights != null && bookings != null)
+        {
+            // Zbor cel mai rezervat (fără anulate)
+            var flightReservations = flights.ToDictionary(
+                f => f,
+                f => bookings.Count(b => b.Flight?.Id == f.Id && b.Status != "CANCELLED")
+            );
+
+            MostBookedFlightCount = flightReservations.Values.Max();
+            MostBookedFlight = flightReservations.FirstOrDefault(kv => kv.Value == MostBookedFlightCount).Key;
+
+            // Număr zboruri anulate
+            CancelledFlightsCount = flights.Count(f => bookings.Any(b => b.Flight?.Id == f.Id && b.Status == "CANCELLED"));
+
+            // Venit acumulat curent
+            TotalProfitAllFlights = flights.Sum(f =>
+                bookings.Where(b => b.Flight?.Id == f.Id && b.Status != "CANCELLED").Sum(b => f.Price)
+            );
+        }
+    }
+}

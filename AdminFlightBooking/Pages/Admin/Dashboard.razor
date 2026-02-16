@@ -1,0 +1,126 @@
+﻿@page "/admin/dashboard"
+@using AdminFlightBooking.Models
+@using AdminFlightBooking.Services
+@inject ApiService Api
+
+<h3 class="mb-4">Rezervări</h3>
+
+@if (bookings == null)
+{
+    <p><em>Se încarcă rezervările...</em></p>
+}
+else
+{
+    <table class="table table-striped table-hover table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Utilizator</th>
+                <th>Zbor</th>
+                <th>Dată</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var b in bookings)
+            {
+                <tr>
+                    <td>@b.Id</td>
+                    <td>@b.User?.Name</td>
+                    <td>@b.Flight?.FlightNumber</td>
+                    <td>@b.BookingDate.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td>
+                        <span class="@GetStatusBadgeClass(b.Status)">@b.Status</span>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<h3 class="mt-5 mb-4">Zboruri</h3>
+
+@if (flights == null)
+{
+    <p><em>Se încarcă zborurile...</em></p>
+}
+else
+{
+    <table class="table table-striped table-hover table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Număr Zbor</th>
+                <th>Companie Aeriană</th>
+                <th>Plecare</th>
+                <th>Sosire</th>
+                <th>Preț</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var f in flights)
+            {
+                <tr>
+                    <td>@f.Id</td>
+                    <td>@f.FlightNumber</td>
+                    <td>@f.Airline</td>
+                    <td>@f.DepartureAirport</td>
+                    <td>@f.ArrivalAirport</td>
+                    <td>@f.Price.ToString("C")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<h3 class="mt-5 mb-4">Utilizatori</h3>
+
+@if (users == null)
+{
+    <p><em>Se încarcă utilizatorii...</em></p>
+}
+else
+{
+    <table class="table table-striped table-hover table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Nume</th>
+                <th>Email</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var u in users)
+            {
+                <tr>
+                    <td>@u.Id</td>
+                    <td>@u.Name</td>
+                    <td>@u.Email</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Booking>? bookings;
+    private List<Flight>? flights;
+    private List<User>? users;
+
+    protected override async Task OnInitializedAsync()
+    {
+        bookings = await Api.GetBookingsAsync();
+        flights = await Api.GetFlightsAsync();
+        users = await Api.GetUsersAsync();
+    }
+
+    private string GetStatusBadgeClass(string? status)
+    {
+        return status switch
+        {
+            "CONFIRMED" => "badge bg-success",
+            "CANCELLED" => "badge bg-danger",
+            _ => "badge bg-secondary"
+        };
+    }
+}

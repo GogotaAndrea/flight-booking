@@ -1,0 +1,71 @@
+﻿@page "/admin/preziceri-ai"
+@using AdminFlightBooking.Models
+@using AdminFlightBooking.Services
+@inject ApiService Api
+@inject AiService Ai
+
+<h3>Predicții AI pentru zboruri</h3>
+
+@if (isLoading)
+{
+    <p><em>Se încarcă predicțiile...</em></p>
+}
+else if (!string.IsNullOrEmpty(lastError))
+{
+    <div class="alert alert-warning">@lastError</div>
+}
+
+@if (predictions?.Any() != true)
+{
+    <p>Nu sunt predicții disponibile.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Număr zbor</th>
+                <th>Rezervări istorice</th>
+                <th>Rezervări prezise</th>
+                <th>Explicație</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in predictions)
+            {
+                <tr>
+                    <td>@p.FlightNumber</td>
+                    <td>@p.HistoricalBookings</td>
+                    <td>@p.PredictedBookings</td>
+                    <td>@p.Explanation</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Flight> flights = new();
+    private List<Booking> bookings = new();
+    private List<AiService.FlightPredictionResult> predictions = new();
+    private bool isLoading = true;
+    private string? lastError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            bookings = await Api.GetBookingsAsync();
+            flights = await Api.GetFlightsAsync();
+            predictions = await Ai.GetFlightPredictionsAsync(flights, bookings);
+        }
+        catch (Exception ex)
+        {
+            lastError = "Eroare la obținerea predicțiilor: " + ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}
